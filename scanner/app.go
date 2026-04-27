@@ -87,6 +87,11 @@ func (a *App) StopScan() {
 	}
 }
 
+// GetMACAddress performs an on-demand MAC address lookup for a given IP
+func (a *App) GetMACAddress(ip string) string {
+	return a.getMacAddr(ip)
+}
+
 // GetLocalIPPrefix returns the first three octets of the local IP address
 func (a *App) GetLocalIPPrefix() string {
 	addrs, err := net.InterfaceAddrs()
@@ -173,7 +178,7 @@ func (a *App) runScan(ctx context.Context, req ScanRequest) {
 						IP:     t.ip,
 						Port:   0,
 						Status: status,
-						MAC:    a.getMacAddr(t.ip),
+						MAC:    "", // Removed from loop to avoid flashing cmd windows
 					}
 				} else {
 					result = a.checkTarget(t, timeout)
@@ -197,6 +202,7 @@ func (a *App) pingHost(ip string, timeout time.Duration) bool {
 			timeoutMs = 1000
 		}
 		cmd = exec.Command("ping", "-n", "1", "-w", fmt.Sprintf("%d", timeoutMs), ip)
+		cmd.SysProcAttr = getSysProcAttr()
 	} else {
 		timeoutSec := int(timeout.Seconds())
 		if timeoutSec < 1 {
@@ -226,6 +232,7 @@ func (a *App) getMacAddr(ip string) string {
 
 	// Try 'ip neigh' (Linux)
 	cmd := exec.Command("ip", "neigh", "show", ip)
+	cmd.SysProcAttr = getSysProcAttr()
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	if err := cmd.Run(); err == nil {
@@ -239,6 +246,7 @@ func (a *App) getMacAddr(ip string) string {
 
 	// Try 'arp -a' (Windows/macOS/Linux fallback)
 	cmd = exec.Command("arp", "-a", ip)
+	cmd.SysProcAttr = getSysProcAttr()
 	out.Reset()
 	cmd.Stdout = &out
 	if err := cmd.Run(); err == nil {

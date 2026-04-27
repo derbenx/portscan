@@ -1,5 +1,5 @@
 import './style.css';
-import {StartScan, StopScan, GetLocalIPPrefix, SendWOL} from '../wailsjs/go/main/App';
+import {StartScan, StopScan, GetLocalIPPrefix, SendWOL, GetMACAddress} from '../wailsjs/go/main/App';
 import {EventsOn} from '../wailsjs/runtime';
 
 const pr = document.getElementById('pr');
@@ -155,22 +155,31 @@ function showDetails(result) {
         <p><b>IP:</b> ${result.ip}</p>
         <p><b>Port:</b> ${result.port || 'N/A'}</p>
         <p><b>Status:</b> ${result.status}</p>
-        <p><b>MAC:</b> ${result.mac || 'Unknown'}</p>
-        ${result.mac ? `<button id="wol-btn">Send WOL</button>` : ''}
+        <p><b>MAC:</b> <span id="popup-mac">Loading...</span></p>
+        <div id="wol-container"></div>
         <p><a href="${url}" target="_blank" style="color: #4da6ff;">Open ${url}</a></p>
     `;
-
-    if (result.mac) {
-        document.getElementById('wol-btn').onclick = () => {
-            SendWOL(result.mac).then(() => {
-                alert(`WOL packet sent to ${result.mac}`);
-            }).catch(err => {
-                alert(`Error sending WOL: ${err}`);
-            });
-        };
-    }
-
     popup.style.display = "block";
+
+    GetMACAddress(result.ip).then(mac => {
+        const macEl = document.getElementById('popup-mac');
+        if (macEl) {
+            macEl.innerText = mac || 'Unknown';
+        }
+        if (mac) {
+            const wolContainer = document.getElementById('wol-container');
+            if (wolContainer) {
+                wolContainer.innerHTML = `<button id="wol-btn">Send WOL</button>`;
+                document.getElementById('wol-btn').onclick = () => {
+                    SendWOL(mac).then(() => {
+                        alert(`WOL packet sent to ${mac}`);
+                    }).catch(err => {
+                        alert(`Error sending WOL: ${err}`);
+                    });
+                };
+            }
+        }
+    });
 }
 
 EventsOn("scanResult", (result) => {
