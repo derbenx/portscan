@@ -12,6 +12,8 @@ const toInput = document.getElementById('to');
 const cnInput = document.getElementById('cn');
 const rdCheckbox = document.getElementById('rd');
 const cyCheckbox = document.getElementById('cy');
+const huCheckbox = document.getElementById('hu');
+const hoCheckbox = document.getElementById('ho');
 const hcCheckbox = document.getElementById('hc');
 const htCheckbox = document.getElementById('ht');
 const cbCheckbox = document.getElementById('cb');
@@ -33,6 +35,9 @@ let resultsData = {};
 GetLocalIPPrefix().then(prefix => {
     ipInput.value = prefix;
 });
+
+// Set Stop Scan active on startup
+setActiveButton(stsc);
 
 pgsw.addEventListener('click', () => initiateScan(-1, pgsw));
 prsw.addEventListener('click', () => initiateScan(0, prsw));
@@ -91,6 +96,7 @@ function initiateScan(type, btn) {
         ipInput.style.background = "green";
         stInput.style.background = "green";
         edInput.style.background = "green";
+        lpInput.style.background = "green";
         lpInput.classList.add('active');
     }
 
@@ -120,6 +126,11 @@ function createPlaceholder(ip, port) {
     cc.className = 'ch';
     cc.id = id;
     cc.innerHTML = `<font id="txt">${ip.split('.').pop()} ${scanType === -1 ? 'ping' : port}:.. </font>`;
+
+    if (huCheckbox.checked) {
+        cc.style.display = 'none';
+    }
+
     pr.appendChild(cc);
 
     cc.onclick = () => {
@@ -134,17 +145,17 @@ function updateEntry(result) {
     if (!cc) return;
 
     let gb = 'red'; // down/timeout
-    if (result.status === 'open' || result.status === 'up') gb = 'grn';
+    const isOpen = result.status === 'open' || result.status === 'up';
+    if (isOpen) gb = 'grn';
     if (result.status === 'closed') gb = 'ora';
 
     // Apply filters
-    if (result.status === 'closed' && hcCheckbox.checked) {
-        cc.style.display = 'none';
-    } else if (result.status === 'down' && htCheckbox.checked) {
-        cc.style.display = 'none';
-    } else {
-        cc.style.display = 'block';
-    }
+    let hide = false;
+    if (isOpen && hoCheckbox.checked) hide = true;
+    if (result.status === 'closed' && hcCheckbox.checked) hide = true;
+    if (result.status === 'down' && htCheckbox.checked) hide = true;
+
+    cc.style.display = hide ? 'none' : 'block';
 
     const lastPart = result.ip.split('.').pop();
     const displayPort = scanType === -1 ? 'ping' : result.port;
@@ -203,10 +214,22 @@ EventsOn("scanResult", (result) => {
 
 EventsOn("scanComplete", () => {
     console.log("Scan complete");
+    setActiveButton(stsc);
+    rstclr();
 });
 
 // Update display when filters change
-hcCheckbox.onchange = htCheckbox.onchange = () => {
+huCheckbox.onchange = () => {
+    const placeholders = document.querySelectorAll('.ch');
+    placeholders.forEach(cc => {
+        const id = cc.id;
+        if (!resultsData[id]) {
+            cc.style.display = huCheckbox.checked ? 'none' : 'block';
+        }
+    });
+};
+
+hoCheckbox.onchange = hcCheckbox.onchange = htCheckbox.onchange = () => {
     for (const id in resultsData) {
         updateEntry(resultsData[id]);
     }
