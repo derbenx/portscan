@@ -1,0 +1,13 @@
+#app-content { height:100%; background:black; padding:10px; }
+.z {background:black; color:white; width:100px; }
+ a {text-decoration:none;}
+#txt{ color:#999999 }
+#grn{ color:#209020 }
+#yel{ color:#808020 }
+#red{ color:#800000 }
+#pr { width: 99%; overflow:auto; }
+#ip { width:150px; }
+.ch { border: 1px solid #101010; margin: 0px 0px; width:125px; float:left; font-size:20px; }
+
+#lb { padding-left: 15px; text-indent: -15px; }
+#cb { padding:0px; margin:0 10px;vertical-align: bottom; position: relative; top: -1px; *overflow: hidden; }
