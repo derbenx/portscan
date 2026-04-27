@@ -19,6 +19,7 @@
                     <td>timeout</td>
                     <td>conns</td>
                     <td>rand</td>
+                    <td>cyclic</td>
                     <td>hide closed</td>
                     <td>hide timeout</td>
                 </tr>
@@ -31,14 +32,17 @@
                     <td><input class='z' id='to' maxlength='4' value='0.2'></td>
                     <td><input class='z' id='cn' maxlength='4' value='10'></td>
                     <td><input type='checkbox' id='rd'></td>
+                    <td><input type='checkbox' id='cy'></td>
                     <td><input type='checkbox' id='hc'></td>
                     <td><input type='checkbox' id='ht'></td>
                 </tr>
             </table>
+            <button id='stsc'>Stop Scan</button>
             <button id='pgsw'>Ping Sweep</button>
             <button id='prsw'>Port Sweep</button>
             <button id='prsc'>Port Scan</button>
-            <button id='stsc'>Stop Scan</button>
+            <button id='lssw'>Sweep Listed Ports</button>
+            <input class='z' id='lp' style='width:200px' value='21,22,80,81,443,445'>
             <label id='lb' for='cb'>scroll to:<input id='cb' type='checkbox'></label>
             <font id='ver'>(Ver 2.1 Go/Wails)</font>
         </div>

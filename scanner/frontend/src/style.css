@@ -106,6 +106,24 @@ td {
 button {
     margin-right: 5px;
     cursor: pointer;
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    padding: 2px 8px;
+}
+
+button.active {
+    background-color: #209020;
+    border-color: #4da6ff;
+}
+
+#stsc.active {
+    background-color: #800000;
+}
+
+input.active {
+    border-color: #4da6ff;
+    box-shadow: 0 0 5px #4da6ff;
 }
 
 /* Modal Styles */

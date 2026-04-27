@@ -11,6 +11,7 @@ const epInput = document.getElementById('ep');
 const toInput = document.getElementById('to');
 const cnInput = document.getElementById('cn');
 const rdCheckbox = document.getElementById('rd');
+const cyCheckbox = document.getElementById('cy');
 const hcCheckbox = document.getElementById('hc');
 const htCheckbox = document.getElementById('ht');
 const cbCheckbox = document.getElementById('cb');
@@ -19,6 +20,8 @@ const pgsw = document.getElementById('pgsw');
 const prsw = document.getElementById('prsw');
 const prsc = document.getElementById('prsc');
 const stsc = document.getElementById('stsc');
+const lssw = document.getElementById('lssw');
+const lpInput = document.getElementById('lp');
 
 const popup = document.getElementById('popup');
 const popupDetails = document.getElementById('popup-details');
@@ -31,11 +34,13 @@ GetLocalIPPrefix().then(prefix => {
     ipInput.value = prefix;
 });
 
-pgsw.addEventListener('click', () => initiateScan(-1));
-prsw.addEventListener('click', () => initiateScan(0));
-prsc.addEventListener('click', () => initiateScan(1));
+pgsw.addEventListener('click', () => initiateScan(-1, pgsw));
+prsw.addEventListener('click', () => initiateScan(0, prsw));
+prsc.addEventListener('click', () => initiateScan(1, prsc));
+lssw.addEventListener('click', () => initiateScan(2, lssw));
 stsc.addEventListener('click', () => {
     StopScan();
+    setActiveButton(stsc);
     rstclr();
 });
 
@@ -45,11 +50,22 @@ window.onclick = (event) => {
 }
 
 function rstclr() {
-    [ipInput, stInput, edInput, spInput, epInput, toInput, cnInput].forEach(el => el.style.background = "black");
+    [ipInput, stInput, edInput, spInput, epInput, toInput, cnInput, lpInput].forEach(el => {
+        if (el) {
+            el.style.background = "black";
+            el.classList.remove('active');
+        }
+    });
 }
 
-function initiateScan(type) {
+function setActiveButton(activeBtn) {
+    [pgsw, prsw, prsc, stsc, lssw].forEach(btn => btn.classList.remove('active'));
+    if (activeBtn) activeBtn.classList.add('active');
+}
+
+function initiateScan(type, btn) {
     rstclr();
+    setActiveButton(btn);
     scanType = type;
     const baseIP = ipInput.value;
     const startIP = parseInt(stInput.value);
@@ -71,6 +87,11 @@ function initiateScan(type) {
         stInput.style.background = "green";
         spInput.style.background = "green";
         epInput.style.background = "green";
+    } else if (type === 2) {
+        ipInput.style.background = "green";
+        stInput.style.background = "green";
+        edInput.style.background = "green";
+        lpInput.classList.add('active');
     }
 
     pr.innerHTML = '';
@@ -85,7 +106,9 @@ function initiateScan(type) {
         timeout: parseFloat(toInput.value),
         connections: parseInt(cnInput.value),
         random: rdCheckbox.checked,
-        scanType: scanType
+        cyclic: cyCheckbox.checked,
+        scanType: scanType,
+        ports: lpInput.value.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p))
     };
 
     StartScan(req);

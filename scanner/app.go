@@ -26,7 +26,9 @@ type ScanRequest struct {
 	Timeout     float64 `json:"timeout"`
 	Connections int     `json:"connections"`
 	Random      bool    `json:"random"`
-	ScanType    int     `json:"scanType"` // -1: Ping Sweep, 0: Port Sweep, 1: Port Scan
+	Cyclic      bool    `json:"cyclic"`
+	ScanType    int     `json:"scanType"` // -1: Ping Sweep, 0: Port Sweep, 1: Port Scan, 2: Sweep Listed Ports
+	Ports       []int   `json:"ports"`
 }
 
 // ScanResult defines the result of a single probe
@@ -144,63 +146,93 @@ func (a *App) runScan(ctx context.Context, req ScanRequest) {
 		for p := req.StartPort; p <= req.EndPort; p++ {
 			targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, req.StartIP), Port: p})
 		}
-	}
-
-	if req.Random {
-		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(targets), func(i, j int) {
-			targets[i], targets[j] = targets[j], targets[i]
-		})
+	} else if req.ScanType == 2 { // Sweep Listed Ports
+		// Interleave: Port 1 on all IPs, then Port 2 on all IPs...
+		for _, p := range req.Ports {
+			for i := req.StartIP; i <= req.EndIP; i++ {
+				targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, i), Port: p})
+			}
+		}
 	}
 
 	sem := make(chan struct{}, req.Connections)
-	var wg sync.WaitGroup
 	timeout := time.Duration(req.Timeout * float64(time.Second))
-
 	chunkSize := 500
+
+	// Emit all chunks first so GUI can pre-generate in order
 	for i := 0; i < len(targets); i += chunkSize {
 		end := i + chunkSize
 		if end > len(targets) {
 			end = len(targets)
 		}
-
-		chunk := targets[i:end]
-		wailsRuntime.EventsEmit(a.ctx, "scanChunk", chunk)
-
-		for _, t := range chunk {
-			select {
-			case <-ctx.Done():
-				return
-			case sem <- struct{}{}:
-				wg.Add(1)
-				go func(t Target) {
-					defer wg.Done()
-					defer func() { <-sem }()
-
-					var result ScanResult
-					if req.ScanType == -1 {
-						up := a.pingHost(t.IP, timeout)
-						status := "down"
-						if up {
-							status = "up"
-						}
-						result = ScanResult{
-							IP:     t.IP,
-							Port:   0,
-							Status: status,
-							MAC:    "",
-						}
-					} else {
-						result = a.checkTarget(t, timeout)
-					}
-					wailsRuntime.EventsEmit(a.ctx, "scanResult", result)
-				}(t)
-			}
-		}
-		wg.Wait() // Wait for current chunk to complete before starting next
+		wailsRuntime.EventsEmit(a.ctx, "scanChunk", targets[i:end])
 	}
 
-	wg.Wait()
+	// Shuffle the ENTIRE list if random is requested
+	scanTargets := make([]Target, len(targets))
+	copy(scanTargets, targets)
+	if req.Random {
+		rand.Seed(time.Now().UnixNano())
+		rand.Shuffle(len(scanTargets), func(i, j int) {
+			scanTargets[i], scanTargets[j] = scanTargets[j], scanTargets[i]
+		})
+	}
+
+	for {
+		for i := 0; i < len(scanTargets); i += chunkSize {
+			end := i + chunkSize
+			if end > len(scanTargets) {
+				end = len(scanTargets)
+			}
+
+			chunk := scanTargets[i:end]
+
+			var wg sync.WaitGroup
+			for _, t := range chunk {
+				select {
+				case <-ctx.Done():
+					return
+				case sem <- struct{}{}:
+					wg.Add(1)
+					go func(t Target) {
+						defer wg.Done()
+						defer func() { <-sem }()
+
+						var result ScanResult
+						if req.ScanType == -1 {
+							up := a.pingHost(t.IP, timeout)
+							status := "down"
+							if up {
+								status = "up"
+							}
+							result = ScanResult{
+								IP:     t.IP,
+								Port:   0,
+								Status: status,
+								MAC:    "",
+							}
+						} else {
+							result = a.checkTarget(t, timeout)
+						}
+						wailsRuntime.EventsEmit(a.ctx, "scanResult", result)
+					}(t)
+				}
+			}
+			wg.Wait() // Wait for current chunk to complete before starting next
+		}
+
+		if !req.Cyclic {
+			break
+		}
+
+		// Small delay before cycling to prevent tight loops
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(1 * time.Second):
+		}
+	}
+
 	wailsRuntime.EventsEmit(a.ctx, "scanComplete", true)
 }
 

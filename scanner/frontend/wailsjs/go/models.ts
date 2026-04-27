@@ -9,7 +9,9 @@ export namespace main {
 	    timeout: number;
 	    connections: number;
 	    random: boolean;
+	    cyclic: boolean;
 	    scanType: number;
+	    ports: number[];
 
 	    static createFrom(source: any = {}) {
 	        return new ScanRequest(source);
@@ -25,7 +27,9 @@ export namespace main {
 	        this.timeout = source["timeout"];
 	        this.connections = source["connections"];
 	        this.random = source["random"];
+	        this.cyclic = source["cyclic"];
 	        this.scanType = source["scanType"];
+	        this.ports = source["ports"];
 	    }
 	}
 
