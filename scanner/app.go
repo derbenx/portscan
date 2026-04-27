@@ -124,25 +124,25 @@ func (a *App) StartScan(req ScanRequest) {
 	go a.runScan(scanCtx, req)
 }
 
-type target struct {
-	ip   string
-	port int
+type Target struct {
+	IP   string `json:"ip"`
+	Port int    `json:"port"`
 }
 
 func (a *App) runScan(ctx context.Context, req ScanRequest) {
-	var targets []target
+	var targets []Target
 
 	if req.ScanType == -1 { // Ping Sweep
 		for i := req.StartIP; i <= req.EndIP; i++ {
-			targets = append(targets, target{ip: fmt.Sprintf("%s.%d", req.BaseIP, i), port: 0})
+			targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, i), Port: 0})
 		}
 	} else if req.ScanType == 0 { // Port Sweep
 		for i := req.StartIP; i <= req.EndIP; i++ {
-			targets = append(targets, target{ip: fmt.Sprintf("%s.%d", req.BaseIP, i), port: req.StartPort})
+			targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, i), Port: req.StartPort})
 		}
 	} else if req.ScanType == 1 { // Port Scan
 		for p := req.StartPort; p <= req.EndPort; p++ {
-			targets = append(targets, target{ip: fmt.Sprintf("%s.%d", req.BaseIP, req.StartIP), port: p})
+			targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, req.StartIP), Port: p})
 		}
 	}
 
@@ -173,19 +173,19 @@ func (a *App) runScan(ctx context.Context, req ScanRequest) {
 				return
 			case sem <- struct{}{}:
 				wg.Add(1)
-				go func(t target) {
+				go func(t Target) {
 					defer wg.Done()
 					defer func() { <-sem }()
 
 					var result ScanResult
 					if req.ScanType == -1 {
-						up := a.pingHost(t.ip, timeout)
+						up := a.pingHost(t.IP, timeout)
 						status := "down"
 						if up {
 							status = "up"
 						}
 						result = ScanResult{
-							IP:     t.ip,
+							IP:     t.IP,
 							Port:   0,
 							Status: status,
 							MAC:    "",
@@ -276,8 +276,8 @@ func (a *App) getMacAddr(ip string) string {
 	return ""
 }
 
-func (a *App) checkTarget(t target, timeout time.Duration) ScanResult {
-	address := fmt.Sprintf("%s:%d", t.ip, t.port)
+func (a *App) checkTarget(t Target, timeout time.Duration) ScanResult {
+	address := fmt.Sprintf("%s:%d", t.IP, t.Port)
 	conn, err := net.DialTimeout("tcp", address, timeout)
 
 	status := "closed"
@@ -293,9 +293,9 @@ func (a *App) checkTarget(t target, timeout time.Duration) ScanResult {
 	}
 
 	return ScanResult{
-		IP:     t.ip,
-		Port:   t.port,
+		IP:     t.IP,
+		Port:   t.Port,
 		Status: status,
-		MAC:    a.getMacAddr(t.ip),
+		MAC:    a.getMacAddr(t.IP),
 	}
 }

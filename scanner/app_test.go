@@ -8,7 +8,7 @@ import (
 func TestCheckTarget(t *testing.T) {
 	app := NewApp()
 	// Test with a likely closed port on localhost
-	res := app.checkTarget(target{ip: "127.0.0.1", port: 12345}, 100*time.Millisecond)
+	res := app.checkTarget(Target{IP: "127.0.0.1", Port: 12345}, 100*time.Millisecond)
 	if res.Status != "closed" && res.Status != "down" {
 		t.Errorf("Expected closed or down, got %s", res.Status)
 	}

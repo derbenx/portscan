@@ -170,7 +170,7 @@ function showDetails(result) {
 
 EventsOn("scanChunk", (chunk) => {
     chunk.forEach(t => {
-        createPlaceholder(t.ip, t.port);
+        createPlaceholder(t.IP || t.ip, t.Port || t.port);
     });
 });
 
