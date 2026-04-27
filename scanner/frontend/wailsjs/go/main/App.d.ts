@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function GetLocalIPPrefix():Promise<string>;
 
+export function GetMACAddress(arg1:string):Promise<string>;
+
 export function SendWOL(arg1:string):Promise<void>;
 
 export function StartScan(arg1:main.ScanRequest):Promise<void>;

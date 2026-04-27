@@ -76,20 +76,6 @@ function initiateScan(type) {
     pr.innerHTML = '';
     resultsData = {};
 
-    // Premake grid
-    if (type === -1 || type === 0) { // Ping Sweep or Port Sweep
-        const port = type === -1 ? 80 : startPort;
-        for (let i = startIP; i <= endIP; i++) {
-            const targetIP = `${baseIP}.${i}`;
-            createPlaceholder(targetIP, port);
-        }
-    } else if (type === 1) { // Port Scan
-        const targetIP = `${baseIP}.${startIP}`;
-        for (let p = startPort; p <= endPort; p++) {
-            createPlaceholder(targetIP, p);
-        }
-    }
-
     const req = {
         baseIP: baseIP,
         startIP: startIP,
@@ -181,6 +167,12 @@ function showDetails(result) {
         }
     });
 }
+
+EventsOn("scanChunk", (chunk) => {
+    chunk.forEach(t => {
+        createPlaceholder(t.ip, t.port);
+    });
+});
 
 EventsOn("scanResult", (result) => {
     updateEntry(result);

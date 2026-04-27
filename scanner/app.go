@@ -157,35 +157,47 @@ func (a *App) runScan(ctx context.Context, req ScanRequest) {
 	var wg sync.WaitGroup
 	timeout := time.Duration(req.Timeout * float64(time.Second))
 
-	for _, t := range targets {
-		select {
-		case <-ctx.Done():
-			return
-		case sem <- struct{}{}:
-			wg.Add(1)
-			go func(t target) {
-				defer wg.Done()
-				defer func() { <-sem }()
-
-				var result ScanResult
-				if req.ScanType == -1 {
-					up := a.pingHost(t.ip, timeout)
-					status := "down"
-					if up {
-						status = "up"
-					}
-					result = ScanResult{
-						IP:     t.ip,
-						Port:   0,
-						Status: status,
-						MAC:    "", // Removed from loop to avoid flashing cmd windows
-					}
-				} else {
-					result = a.checkTarget(t, timeout)
-				}
-				wailsRuntime.EventsEmit(a.ctx, "scanResult", result)
-			}(t)
+	chunkSize := 500
+	for i := 0; i < len(targets); i += chunkSize {
+		end := i + chunkSize
+		if end > len(targets) {
+			end = len(targets)
 		}
+
+		chunk := targets[i:end]
+		wailsRuntime.EventsEmit(a.ctx, "scanChunk", chunk)
+
+		for _, t := range chunk {
+			select {
+			case <-ctx.Done():
+				return
+			case sem <- struct{}{}:
+				wg.Add(1)
+				go func(t target) {
+					defer wg.Done()
+					defer func() { <-sem }()
+
+					var result ScanResult
+					if req.ScanType == -1 {
+						up := a.pingHost(t.ip, timeout)
+						status := "down"
+						if up {
+							status = "up"
+						}
+						result = ScanResult{
+							IP:     t.ip,
+							Port:   0,
+							Status: status,
+							MAC:    "",
+						}
+					} else {
+						result = a.checkTarget(t, timeout)
+					}
+					wailsRuntime.EventsEmit(a.ctx, "scanResult", result)
+				}(t)
+			}
+		}
+		wg.Wait() // Wait for current chunk to complete before starting next
 	}
 
 	wg.Wait()
@@ -201,14 +213,14 @@ func (a *App) pingHost(ip string, timeout time.Duration) bool {
 		if timeoutMs < 1 {
 			timeoutMs = 1000
 		}
-		cmd = exec.Command("ping", "-n", "1", "-w", fmt.Sprintf("%d", timeoutMs), ip)
+		cmd = exec.Command("ping", "-n", "1", "-w", fmt.Sprintf("%v", timeoutMs), ip)
 		cmd.SysProcAttr = getSysProcAttr()
 	} else {
-		timeoutSec := int(timeout.Seconds())
+		timeoutSec := timeout.Seconds()
 		if timeoutSec < 1 {
 			timeoutSec = 1
 		}
-		cmd = exec.Command("ping", "-c", "1", "-W", fmt.Sprintf("%d", timeoutSec), ip)
+		cmd = exec.Command("ping", "-c", "1", "-W", fmt.Sprintf("%v", timeoutSec), ip)
 	}
 
 	err := cmd.Run()
