@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ type ScanResult struct {
 	IP     string `json:"ip"`
 	Port   int    `json:"port"`
 	Status string `json:"status"` // "up", "open", "closed", "down"
+	MAC    string `json:"mac"`
 }
 
 // App struct
@@ -145,6 +147,21 @@ func (a *App) runScan(ctx context.Context, req ScanRequest) {
 	runtime.EventsEmit(a.ctx, "scanComplete", true)
 }
 
+func (a *App) getMacAddr(ip string) string {
+	data, err := os.ReadFile("/proc/net/arp")
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) >= 4 && fields[0] == ip {
+			return fields[3]
+		}
+	}
+	return ""
+}
+
 func (a *App) checkTarget(t target, timeout time.Duration) ScanResult {
 	address := fmt.Sprintf("%s:%d", t.ip, t.port)
 	conn, err := net.DialTimeout("tcp", address, timeout)
@@ -154,10 +171,10 @@ func (a *App) checkTarget(t target, timeout time.Duration) ScanResult {
 		conn.Close()
 		status = "open"
 	} else {
-		// You could further distinguish between timeout (down) and connection refused (closed)
-		// but for simplicity matching the original logic's colors
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			status = "down"
+		} else {
+			status = "closed"
 		}
 	}
 
@@ -165,5 +182,6 @@ func (a *App) checkTarget(t target, timeout time.Duration) ScanResult {
 		IP:     t.ip,
 		Port:   t.port,
 		Status: status,
+		MAC:    a.getMacAddr(t.ip),
 	}
 }

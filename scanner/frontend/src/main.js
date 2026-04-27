@@ -3,25 +3,32 @@ import {StartScan, StopScan, GetLocalIPPrefix} from '../wailsjs/go/main/App';
 import {EventsOn} from '../wailsjs/runtime';
 
 const pr = document.getElementById('pr');
-const ip = document.getElementById('ip');
-const st = document.getElementById('st');
-const ed = document.getElementById('ed');
-const sp = document.getElementById('sp');
-const ep = document.getElementById('ep');
-const to = document.getElementById('to');
-const cn = document.getElementById('cn');
-const rd = document.getElementById('rd');
-const cb = document.getElementById('cb');
+const ipInput = document.getElementById('ip');
+const stInput = document.getElementById('st');
+const edInput = document.getElementById('ed');
+const spInput = document.getElementById('sp');
+const epInput = document.getElementById('ep');
+const toInput = document.getElementById('to');
+const cnInput = document.getElementById('cn');
+const rdCheckbox = document.getElementById('rd');
+const hcCheckbox = document.getElementById('hc');
+const htCheckbox = document.getElementById('ht');
+const cbCheckbox = document.getElementById('cb');
 
 const pgsw = document.getElementById('pgsw');
 const prsw = document.getElementById('prsw');
 const prsc = document.getElementById('prsc');
 const stsc = document.getElementById('stsc');
 
+const popup = document.getElementById('popup');
+const popupDetails = document.getElementById('popup-details');
+const closeBtn = document.getElementsByClassName('close')[0];
+
 let scanType = 0;
+let resultsData = {};
 
 GetLocalIPPrefix().then(prefix => {
-    ip.value = prefix;
+    ipInput.value = prefix;
 });
 
 pgsw.addEventListener('click', () => initiateScan(-1));
@@ -32,73 +39,139 @@ stsc.addEventListener('click', () => {
     rstclr();
 });
 
+closeBtn.onclick = () => popup.style.display = "none";
+window.onclick = (event) => {
+    if (event.target == popup) popup.style.display = "none";
+}
+
 function rstclr() {
-    [ip, st, ed, sp, ep, to, cn].forEach(el => el.style.background = "black");
+    [ipInput, stInput, edInput, spInput, epInput, toInput, cnInput].forEach(el => el.style.background = "black");
 }
 
 function initiateScan(type) {
     rstclr();
     scanType = type;
+    const baseIP = ipInput.value;
+    const startIP = parseInt(stInput.value);
+    const endIP = parseInt(edInput.value);
+    const startPort = parseInt(spInput.value);
+    const endPort = parseInt(epInput.value);
+
     if (type === -1) {
-        ip.style.background = "green";
-        st.style.background = "green";
-        ed.style.background = "green";
+        ipInput.style.background = "green";
+        stInput.style.background = "green";
+        edInput.style.background = "green";
     } else if (type === 0) {
-        ip.style.background = "green";
-        st.style.background = "green";
-        ed.style.background = "green";
-        sp.style.background = "green";
+        ipInput.style.background = "green";
+        stInput.style.background = "green";
+        edInput.style.background = "green";
+        spInput.style.background = "green";
     } else if (type === 1) {
-        ip.style.background = "green";
-        st.style.background = "green";
-        sp.style.background = "green";
-        ep.style.background = "green";
+        ipInput.style.background = "green";
+        stInput.style.background = "green";
+        spInput.style.background = "green";
+        epInput.style.background = "green";
     }
 
     pr.innerHTML = '';
+    resultsData = {};
+
+    // Premake grid
+    if (type === -1 || type === 0) { // Ping Sweep or Port Sweep
+        const port = type === -1 ? 80 : startPort;
+        for (let i = startIP; i <= endIP; i++) {
+            const targetIP = `${baseIP}.${i}`;
+            createPlaceholder(targetIP, port);
+        }
+    } else if (type === 1) { // Port Scan
+        const targetIP = `${baseIP}.${startIP}`;
+        for (let p = startPort; p <= endPort; p++) {
+            createPlaceholder(targetIP, p);
+        }
+    }
 
     const req = {
-        baseIP: ip.value,
-        startIP: parseInt(st.value),
-        endIP: parseInt(ed.value),
-        startPort: parseInt(sp.value),
-        endPort: parseInt(ep.value),
-        timeout: parseFloat(to.value),
-        connections: parseInt(cn.value),
-        random: rd.checked,
+        baseIP: baseIP,
+        startIP: startIP,
+        endIP: endIP,
+        startPort: startPort,
+        endPort: endPort,
+        timeout: parseFloat(toInput.value),
+        connections: parseInt(cnInput.value),
+        random: rdCheckbox.checked,
         scanType: scanType
     };
 
     StartScan(req);
 }
 
-EventsOn("scanResult", (result) => {
-    let gb = 'red';
+function createPlaceholder(ip, port) {
+    const id = `c-${ip}-${port}`.replace(/\./g, '-');
+    const cc = document.createElement("div");
+    cc.className = 'ch';
+    cc.id = id;
+    cc.innerHTML = `<font id="txt">${ip.split('.').pop()} ${scanType === -1 ? 'ping' : port}:.. </font>`;
+    pr.appendChild(cc);
+
+    cc.onclick = () => {
+        if (resultsData[id]) showDetails(resultsData[id]);
+    };
+}
+
+function updateEntry(result) {
+    const id = `c-${result.ip}-${result.port}`.replace(/\./g, '-');
+    resultsData[id] = result;
+    const cc = document.getElementById(id);
+    if (!cc) return;
+
+    let gb = 'red'; // down/timeout
     if (result.status === 'open' || result.status === 'up') gb = 'grn';
-    if (result.status === 'closed') gb = 'yel';
+    if (result.status === 'closed') gb = 'ora';
+
+    // Apply filters
+    if (result.status === 'closed' && hcCheckbox.checked) {
+        cc.style.display = 'none';
+    } else if (result.status === 'down' && htCheckbox.checked) {
+        cc.style.display = 'none';
+    } else {
+        cc.style.display = 'block';
+    }
 
     const lastPart = result.ip.split('.').pop();
-    const portInfo = scanType === -1 ? '' : `:${result.port}`;
     const displayPort = scanType === -1 ? 'ping' : result.port;
+    const statusShort = result.status.substr(0, 2);
 
-    const out = `<a href="http://${result.ip}${portInfo}" target="_blank"><font id="${gb}">${lastPart} ${displayPort}:${result.status.substr(0, 2)}</font></a><br>`;
+    cc.innerHTML = `<font id="${gb}">${lastPart} ${displayPort}:${statusShort}</font>`;
 
-    const id = `c-${result.ip}-${result.port}`.replace(/\./g, '-');
-    let cc = document.getElementById(id);
-    if (!cc) {
-        cc = document.createElement("div");
-        cc.className = 'ch';
-        cc.id = id;
-        pr.appendChild(cc);
-    }
-    cc.innerHTML = out;
-
-    if (cb.checked) {
+    if (cbCheckbox.checked && cc.style.display !== 'none') {
         cc.scrollIntoView();
     }
+}
+
+function showDetails(result) {
+    const portInfo = scanType === -1 ? '' : `:${result.port}`;
+    const url = `http://${result.ip}${portInfo}`;
+    popupDetails.innerHTML = `
+        <p><b>IP:</b> ${result.ip}</p>
+        <p><b>Port:</b> ${result.port}</p>
+        <p><b>Status:</b> ${result.status}</p>
+        <p><b>MAC:</b> ${result.mac || 'Unknown'}</p>
+        <p><a href="${url}" target="_blank" style="color: #4da6ff;">Open ${url}</a></p>
+    `;
+    popup.style.display = "block";
+}
+
+EventsOn("scanResult", (result) => {
+    updateEntry(result);
 });
 
 EventsOn("scanComplete", () => {
     console.log("Scan complete");
-    // Optionally alert user or change UI state
 });
+
+// Update display when filters change
+hcCheckbox.onchange = htCheckbox.onchange = () => {
+    for (const id in resultsData) {
+        updateEntry(resultsData[id]);
+    }
+};

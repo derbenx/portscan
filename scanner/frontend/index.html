@@ -19,6 +19,8 @@
                     <td>timeout</td>
                     <td>conns</td>
                     <td>rand</td>
+                    <td>hide closed</td>
+                    <td>hide timeout</td>
                 </tr>
                 <tr>
                     <td><input class='z' id='ip' maxlength='15' value='192.168.1'></td>
@@ -29,6 +31,8 @@
                     <td><input class='z' id='to' maxlength='4' value='0.2'></td>
                     <td><input class='z' id='cn' maxlength='4' value='10'></td>
                     <td><input type='checkbox' id='rd'></td>
+                    <td><input type='checkbox' id='hc'></td>
+                    <td><input type='checkbox' id='ht'></td>
                 </tr>
             </table>
             <button id='pgsw'>Ping Sweep</button>
@@ -36,10 +40,18 @@
             <button id='prsc'>Port Scan</button>
             <button id='stsc'>Stop Scan</button>
             <label id='lb' for='cb'>scroll to:<input id='cb' type='checkbox'></label>
-            <font id='ver'>(Ver 2.0 Go/Wails)</font>
+            <font id='ver'>(Ver 2.1 Go/Wails)</font>
         </div>
         <p>
         <div id="pr"></div>
+    </div>
+
+    <!-- Detail Popup -->
+    <div id="popup" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="popup-details"></div>
+        </div>
     </div>
 </div>
 <script src="./src/main.js" type="module"></script>
