@@ -6,6 +6,10 @@ export function GetLocalIPPrefix() {
   return window['go']['main']['App']['GetLocalIPPrefix']();
 }
 
+export function SendWOL(arg1) {
+  return window['go']['main']['App']['SendWOL'](arg1);
+}
+
 export function StartScan(arg1) {
   return window['go']['main']['App']['StartScan'](arg1);
 }

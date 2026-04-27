@@ -2,15 +2,18 @@ package main
 
 import (
 	"context"
+	"bytes"
 	"fmt"
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ScanRequest defines the parameters for a scan
@@ -50,6 +53,28 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+}
+
+// SendWOL sends a Magic Packet to the specified MAC address
+func (a *App) SendWOL(macStr string) error {
+	mac, err := net.ParseMAC(macStr)
+	if err != nil {
+		return err
+	}
+
+	packet := bytes.Repeat([]byte{0xFF}, 6)
+	for i := 0; i < 16; i++ {
+		packet = append(packet, mac...)
+	}
+
+	conn, err := net.Dial("udp", "255.255.255.255:9")
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = conn.Write(packet)
+	return err
 }
 
 // StopScan cancels the ongoing scan
@@ -104,7 +129,7 @@ func (a *App) runScan(ctx context.Context, req ScanRequest) {
 
 	if req.ScanType == -1 { // Ping Sweep
 		for i := req.StartIP; i <= req.EndIP; i++ {
-			targets = append(targets, target{ip: fmt.Sprintf("%s.%d", req.BaseIP, i), port: 80}) // Defaulting to 80 for "ping" sweep
+			targets = append(targets, target{ip: fmt.Sprintf("%s.%d", req.BaseIP, i), port: 0})
 		}
 	} else if req.ScanType == 0 { // Port Sweep
 		for i := req.StartIP; i <= req.EndIP; i++ {
@@ -137,28 +162,97 @@ func (a *App) runScan(ctx context.Context, req ScanRequest) {
 				defer wg.Done()
 				defer func() { <-sem }()
 
-				result := a.checkTarget(t, timeout)
-				runtime.EventsEmit(a.ctx, "scanResult", result)
+				var result ScanResult
+				if req.ScanType == -1 {
+					up := a.pingHost(t.ip, timeout)
+					status := "down"
+					if up {
+						status = "up"
+					}
+					result = ScanResult{
+						IP:     t.ip,
+						Port:   0,
+						Status: status,
+						MAC:    a.getMacAddr(t.ip),
+					}
+				} else {
+					result = a.checkTarget(t, timeout)
+				}
+				wailsRuntime.EventsEmit(a.ctx, "scanResult", result)
 			}(t)
 		}
 	}
 
 	wg.Wait()
-	runtime.EventsEmit(a.ctx, "scanComplete", true)
+	wailsRuntime.EventsEmit(a.ctx, "scanComplete", true)
+}
+
+func (a *App) pingHost(ip string, timeout time.Duration) bool {
+	// Use system ping command. -c 1 (count), -W 1 (timeout in seconds)
+	// On Windows it would be -n 1 -w timeout
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		timeoutMs := timeout.Milliseconds()
+		if timeoutMs < 1 {
+			timeoutMs = 1000
+		}
+		cmd = exec.Command("ping", "-n", "1", "-w", fmt.Sprintf("%d", timeoutMs), ip)
+	} else {
+		timeoutSec := int(timeout.Seconds())
+		if timeoutSec < 1 {
+			timeoutSec = 1
+		}
+		cmd = exec.Command("ping", "-c", "1", "-W", fmt.Sprintf("%d", timeoutSec), ip)
+	}
+
+	err := cmd.Run()
+	return err == nil
 }
 
 func (a *App) getMacAddr(ip string) string {
+	// Try /proc/net/arp first (Linux)
 	data, err := os.ReadFile("/proc/net/arp")
-	if err != nil {
-		return ""
-	}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		fields := strings.Fields(line)
-		if len(fields) >= 4 && fields[0] == ip {
-			return fields[3]
+	if err == nil {
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			fields := strings.Fields(line)
+			if len(fields) >= 4 && fields[0] == ip {
+				if fields[3] != "00:00:00:00:00:00" {
+					return fields[3]
+				}
+			}
 		}
 	}
+
+	// Try 'ip neigh' (Linux)
+	cmd := exec.Command("ip", "neigh", "show", ip)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err == nil {
+		fields := strings.Fields(out.String())
+		for i, field := range fields {
+			if field == "lladdr" && i+1 < len(fields) {
+				return fields[i+1]
+			}
+		}
+	}
+
+	// Try 'arp -a' (Windows/macOS/Linux fallback)
+	cmd = exec.Command("arp", "-a", ip)
+	out.Reset()
+	cmd.Stdout = &out
+	if err := cmd.Run(); err == nil {
+		fields := strings.Fields(out.String())
+		for _, field := range fields {
+			// Look for something that looks like a MAC address
+			if strings.Contains(field, ":") || strings.Contains(field, "-") {
+				if len(field) >= 11 { // basic check for MAC length
+					return field
+				}
+			}
+		}
+	}
+
 	return ""
 }
 
