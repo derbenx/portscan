@@ -39,12 +39,12 @@
                     <td><input type='checkbox' id='ht' title="Hide Timeout"></td>
                 </tr>
             </table>
-            <button id='stsc'>Stop Scan</button>
-            <button id='pgsw'>Ping Sweep</button>
-            <button id='prsw'>Port Sweep</button>
-            <button id='prsc'>Port Scan</button>
-            <button id='lssw'>Sweep Listed Ports</button>
-            <input class='z' id='lp' style='width:200px' value='21,22,80,81,443,445'>
+            <button id='stsc' title="Stop the current scan.">Stop Scan</button>
+            <button id='pgsw' title="Perform an ICMP Ping Sweep across the specified IP range.">Ping Sweep</button>
+            <button id='prsw' title="Sweep a single port (First Port) across the specified IP range.">Port Sweep</button>
+            <button id='prsc' title="Scan a range of ports (First Port to Last Port) on the Start IP only.">Port Scan</button>
+            <button id='lssw' title="Sweep the custom port list across the specified IP range.">Sweep Listed Ports</button>
+            <input class='z' id='lp' style='width:200px' value='21,22,80,81,443,445' title="A comma-separated list of ports to sweep.">
             <label id='lb' for='cb'>scroll to:<input id='cb' type='checkbox'></label>
             <font id='ver'>(Ver 2.1 Go/Wails)</font>
         </div>

@@ -33,6 +33,11 @@ let resultsData = {};
 
 GetLocalIPPrefix().then(prefix => {
     stInput.value = prefix;
+    // Set end IP to the same subnet but .254
+    const parts = prefix.split('.');
+    if (parts.length === 4) {
+        edInput.value = `${parts[0]}.${parts[1]}.${parts[2]}.254`;
+    }
 });
 
 // Set Stop Scan active on startup
