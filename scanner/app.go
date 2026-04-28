@@ -159,36 +159,28 @@ func (a *App) runScan(ctx context.Context, req ScanRequest) {
 	timeout := time.Duration(req.Timeout * float64(time.Second))
 	chunkSize := 500
 
-	// Emit all chunks first so GUI can pre-generate in order
-	for i := 0; i < len(targets); i += chunkSize {
-		end := i + chunkSize
-		if end > len(targets) {
-			end = len(targets)
-		}
-		wailsRuntime.EventsEmit(a.ctx, "scanChunk", targets[i:end])
-	}
-
-	// Shuffle the ENTIRE list if random is requested
-	scanTargets := make([]Target, len(targets))
-	copy(scanTargets, targets)
-	if req.Random {
-		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(scanTargets), func(i, j int) {
-			scanTargets[i], scanTargets[j] = scanTargets[j], scanTargets[i]
-		})
-	}
-
 	for {
-		for i := 0; i < len(scanTargets); i += chunkSize {
+		for i := 0; i < len(targets); i += chunkSize {
 			end := i + chunkSize
-			if end > len(scanTargets) {
-				end = len(scanTargets)
+			if end > len(targets) {
+				end = len(targets)
 			}
 
-			chunk := scanTargets[i:end]
+			chunk := targets[i:end]
+			wailsRuntime.EventsEmit(a.ctx, "scanChunk", chunk)
+
+			// Randomize within the current chunk
+			scanTargets := make([]Target, len(chunk))
+			copy(scanTargets, chunk)
+			if req.Random {
+				rand.Seed(time.Now().UnixNano())
+				rand.Shuffle(len(scanTargets), func(i, j int) {
+					scanTargets[i], scanTargets[j] = scanTargets[j], scanTargets[i]
+				})
+			}
 
 			var wg sync.WaitGroup
-			for _, t := range chunk {
+			for _, t := range scanTargets {
 				select {
 				case <-ctx.Done():
 					return
