@@ -3,7 +3,6 @@ import {StartScan, StopScan, GetLocalIPPrefix, SendWOL, GetMACAddress} from '../
 import {EventsOn} from '../wailsjs/runtime';
 
 const pr = document.getElementById('pr');
-const ipInput = document.getElementById('ip');
 const stInput = document.getElementById('st');
 const edInput = document.getElementById('ed');
 const spInput = document.getElementById('sp');
@@ -33,7 +32,7 @@ let scanType = 0;
 let resultsData = {};
 
 GetLocalIPPrefix().then(prefix => {
-    ipInput.value = prefix;
+    stInput.value = prefix;
 });
 
 // Set Stop Scan active on startup
@@ -55,7 +54,7 @@ window.onclick = (event) => {
 }
 
 function rstclr() {
-    [ipInput, stInput, edInput, spInput, epInput, toInput, cnInput, lpInput].forEach(el => {
+    [stInput, edInput, spInput, epInput, toInput, cnInput, lpInput].forEach(el => {
         if (el) {
             el.style.background = "black";
             el.classList.remove('active');
@@ -72,28 +71,23 @@ function initiateScan(type, btn) {
     rstclr();
     setActiveButton(btn);
     scanType = type;
-    const baseIP = ipInput.value;
-    const startIP = parseInt(stInput.value);
-    const endIP = parseInt(edInput.value);
+    const startIP = stInput.value;
+    const endIP = edInput.value;
     const startPort = parseInt(spInput.value);
     const endPort = parseInt(epInput.value);
 
     if (type === -1) {
-        ipInput.style.background = "green";
         stInput.style.background = "green";
         edInput.style.background = "green";
     } else if (type === 0) {
-        ipInput.style.background = "green";
         stInput.style.background = "green";
         edInput.style.background = "green";
         spInput.style.background = "green";
     } else if (type === 1) {
-        ipInput.style.background = "green";
         stInput.style.background = "green";
         spInput.style.background = "green";
         epInput.style.background = "green";
     } else if (type === 2) {
-        ipInput.style.background = "green";
         stInput.style.background = "green";
         edInput.style.background = "green";
         lpInput.style.background = "green";
@@ -104,7 +98,6 @@ function initiateScan(type, btn) {
     resultsData = {};
 
     const req = {
-        baseIP: baseIP,
         startIP: startIP,
         endIP: endIP,
         startPort: startPort,
@@ -170,7 +163,10 @@ function updateEntry(result) {
 
 function showDetails(result) {
     const portInfo = (scanType === -1 || result.port === 0) ? '' : `:${result.port}`;
-    const url = `http://${result.ip}${portInfo}`;
+    let protocol = 'http';
+    if (result.port === 443) protocol = 'https';
+    if (result.port === 21) protocol = 'ftp';
+    const url = `${protocol}://${result.ip}${portInfo}`;
     popupDetails.innerHTML = `
         <p><b>IP:</b> ${result.ip}</p>
         <p><b>Port:</b> ${result.port || 'N/A'}</p>

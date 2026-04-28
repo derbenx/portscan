@@ -11,34 +11,32 @@
         <div id='tab'>
             <table>
                 <tr>
-                    <td>Base IP</td>
-                    <td>Start IP</td>
-                    <td>End IP</td>
-                    <td>first port</td>
-                    <td>last port</td>
-                    <td>timeout</td>
-                    <td>conns</td>
-                    <td>rand</td>
-                    <td>cyclic</td>
-                    <td>hides: unscanned</td>
-                    <td>open</td>
-                    <td>closed</td>
-                    <td>timeout</td>
+                    <td title="The first IP address in the range to scan. For single IP scans, use this only.">Start IP</td>
+                    <td title="The last IP address in the range to scan (inclusive).">End IP</td>
+                    <td title="The first port number in the range (for Port Scan) or the specific port to sweep (for Port Sweep).">first port</td>
+                    <td title="The last port number in the range (for Port Scan only).">last port</td>
+                    <td title="How long to wait for each probe to respond (in seconds).">timeout</td>
+                    <td title="Maximum number of simultaneous connections to the network.">conns</td>
+                    <td title="If checked, targets will be scanned in a random order within each block.">rand</td>
+                    <td title="If checked, the scan will automatically restart from the beginning once finished.">cyclic</td>
+                    <td title="Hide entries that haven't been scanned yet.">hides: unscanned</td>
+                    <td title="Hide hosts that are online or ports that are open.">open</td>
+                    <td title="Hide ports that are closed (connection refused).">closed</td>
+                    <td title="Hide hosts or ports that timed out.">timeout</td>
                 </tr>
                 <tr>
-                    <td><input class='z' id='ip' maxlength='15' value='192.168.1'></td>
-                    <td><input class='z' id='st' maxlength='3' value='1'></td>
-                    <td><input class='z' id='ed' maxlength='3' value='254'></td>
-                    <td><input class='z' id='sp' maxlength='5' value='80'></td>
-                    <td><input class='z' id='ep' maxlength='5' value='65534'></td>
-                    <td><input class='z' id='to' maxlength='4' value='0.2'></td>
-                    <td><input class='z' id='cn' maxlength='4' value='10'></td>
-                    <td><input type='checkbox' id='rd'></td>
-                    <td><input type='checkbox' id='cy'></td>
-                    <td><input type='checkbox' id='hu'></td>
-                    <td><input type='checkbox' id='ho'></td>
-                    <td><input type='checkbox' id='hc'></td>
-                    <td><input type='checkbox' id='ht'></td>
+                    <td><input class='z' id='st' maxlength='15' value='192.168.1.0' style='width:120px' title="Start IP"></td>
+                    <td><input class='z' id='ed' maxlength='15' value='192.168.1.254' style='width:120px' title="End IP"></td>
+                    <td><input class='z' id='sp' maxlength='5' value='80' title="First Port"></td>
+                    <td><input class='z' id='ep' maxlength='5' value='65534' title="Last Port"></td>
+                    <td><input class='z' id='to' maxlength='4' value='0.2' title="Timeout (seconds)"></td>
+                    <td><input class='z' id='cn' maxlength='4' value='10' title="Concurrent Connections"></td>
+                    <td><input type='checkbox' id='rd' title="Randomize Scan Order"></td>
+                    <td><input type='checkbox' id='cy' title="Repeat Scan Continually"></td>
+                    <td><input type='checkbox' id='hu' title="Hide Unscanned"></td>
+                    <td><input type='checkbox' id='ho' title="Hide Open"></td>
+                    <td><input type='checkbox' id='hc' title="Hide Closed"></td>
+                    <td><input type='checkbox' id='ht' title="Hide Timeout"></td>
                 </tr>
             </table>
             <button id='stsc'>Stop Scan</button>

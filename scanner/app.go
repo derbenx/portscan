@@ -1,8 +1,9 @@
 package main
 
 import (
-	"context"
 	"bytes"
+	"context"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"net"
@@ -18,9 +19,8 @@ import (
 
 // ScanRequest defines the parameters for a scan
 type ScanRequest struct {
-	BaseIP      string  `json:"baseIP"`
-	StartIP     int     `json:"startIP"`
-	EndIP       int     `json:"endIP"`
+	StartIP     string  `json:"startIP"`
+	EndIP       string  `json:"endIP"`
 	StartPort   int     `json:"startPort"`
 	EndPort     int     `json:"endPort"`
 	Timeout     float64 `json:"timeout"`
@@ -98,7 +98,7 @@ func (a *App) GetMACAddress(ip string) string {
 func (a *App) GetLocalIPPrefix() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		return "192.168.1"
+		return "192.168.1.0"
 	}
 	for _, address := range addrs {
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
@@ -106,12 +106,12 @@ func (a *App) GetLocalIPPrefix() string {
 				ip := ipnet.IP.String()
 				parts := strings.Split(ip, ".")
 				if len(parts) == 4 {
-					return parts[0] + "." + parts[1] + "." + parts[2]
+					return parts[0] + "." + parts[1] + "." + parts[2] + ".0"
 				}
 			}
 		}
 	}
-	return "192.168.1"
+	return "192.168.1.0"
 }
 
 // StartScan initiates the scanning process
@@ -131,26 +131,47 @@ type Target struct {
 	Port int    `json:"port"`
 }
 
+func ipToUint32(ipStr string) uint32 {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return 0
+	}
+	ip = ip.To4()
+	if ip == nil {
+		return 0
+	}
+	return binary.BigEndian.Uint32(ip)
+}
+
+func uint32ToIP(n uint32) string {
+	ip := make(net.IP, 4)
+	binary.BigEndian.PutUint32(ip, n)
+	return ip.String()
+}
+
 func (a *App) runScan(ctx context.Context, req ScanRequest) {
 	var targets []Target
 
+	start := ipToUint32(req.StartIP)
+	end := ipToUint32(req.EndIP)
+
 	if req.ScanType == -1 { // Ping Sweep
-		for i := req.StartIP; i <= req.EndIP; i++ {
-			targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, i), Port: 0})
+		for i := start; i <= end; i++ {
+			targets = append(targets, Target{IP: uint32ToIP(i), Port: 0})
 		}
 	} else if req.ScanType == 0 { // Port Sweep
-		for i := req.StartIP; i <= req.EndIP; i++ {
-			targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, i), Port: req.StartPort})
+		for i := start; i <= end; i++ {
+			targets = append(targets, Target{IP: uint32ToIP(i), Port: req.StartPort})
 		}
 	} else if req.ScanType == 1 { // Port Scan
 		for p := req.StartPort; p <= req.EndPort; p++ {
-			targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, req.StartIP), Port: p})
+			targets = append(targets, Target{IP: req.StartIP, Port: p})
 		}
 	} else if req.ScanType == 2 { // Sweep Listed Ports
 		// Interleave: Port 1 on all IPs, then Port 2 on all IPs...
 		for _, p := range req.Ports {
-			for i := req.StartIP; i <= req.EndIP; i++ {
-				targets = append(targets, Target{IP: fmt.Sprintf("%s.%d", req.BaseIP, i), Port: p})
+			for i := start; i <= end; i++ {
+				targets = append(targets, Target{IP: uint32ToIP(i), Port: p})
 			}
 		}
 	}
